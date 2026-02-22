@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ginicast_data"
+version = "0.1.0"
+description = "GiniCast Phase 1 Data Acquisition & Pipeline"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "requests",
+    "pandas",
+    "pyyaml",
+    "python-dotenv",
+    "tqdm",
+    "tenacity",
+    "pyarrow",
+]
+
+[project.scripts]
+ginicast-data = "ginicast_data.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ginicast_data"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

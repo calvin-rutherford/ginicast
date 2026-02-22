@@ -1,0 +1,57 @@
+import pandas as pd
+import logging
+from typing import Tuple, Any
+
+from ginicast_data.fetch.base import BaseFetcher
+from ginicast_data.io.readers import find_manual_raw_file
+from ginicast_data.utils.time import current_timestamp_iso
+
+logger = logging.getLogger(__name__)
+
+class OECDFetcher(BaseFetcher):
+    """
+    Fetches OECD metrics.
+    For Phase 1, defaults to manual file ingest.
+    Users should download data from OECD.stat and place it 
+    in `data/raw_manual/oecd/<metric_id>.csv` containing 'date' and 'value' columns.
+    """
+    
+    def __init__(self, source_config: dict[str, Any]):
+        super().__init__(source_config)
+        
+    def fetch(self, metric_config: dict[str, Any]) -> Tuple[pd.DataFrame, dict[str, Any]]:
+        metric_id = metric_config.get("metric_id")
+        manual_file = find_manual_raw_file("oecd", metric_id)
+        
+        if not manual_file:
+            logger.warning(
+                f"No manual CSV found for OECD metric '{metric_id}'. "
+                f"Please download it and place it in 'data/raw_manual/oecd/{metric_id}.csv'.\n"
+                f"Returning empty dataframe."
+            )
+            df = pd.DataFrame(columns=["date", "value"])
+        else:
+            logger.info(f"Process manual OECD file: {manual_file}")
+            df = pd.read_csv(manual_file)
+            
+            if "date" not in df.columns or "value" not in df.columns:
+                raise ValueError(f"Manual file for {metric_id} must have 'date' and 'value' columns.")
+                
+            df = df[["date", "value"]]
+            df["value"] = pd.to_numeric(df["value"], errors="coerce")
+            
+        metadata = {
+            "metric_id": metric_id,
+            "display_name": metric_config.get("display_name"),
+            "source": "oecd",
+            "source_series_id": metric_config.get("source_series_id"),
+            "units": metric_config.get("units"),
+            "expected_frequency": metric_config.get("expected_frequency"),
+            "retrieval_timestamp": current_timestamp_iso(),
+            "raw_rows_count": len(df),
+            "observation_start": df["date"].min() if not df.empty else None,
+            "observation_end": df["date"].max() if not df.empty else None,
+            "notes": metric_config.get("notes", "") + " (Manual ingest)"
+        }
+        
+        return df, metadata
