@@ -117,7 +117,7 @@ metrics:
     display_name: "Individual Income Tax Rate"
     category: "core"
     source: "fred"
-    source_series_id: "TBD" # Hard to capture as single series, often marginal top rate is used
+    source_series_id: "FYFRGDA188S" # Hard to capture as single series, often marginal top rate is used
     expected_frequency: "annual"
     units: "Percent"
     notes: "Needs manual definition or alternative series."
@@ -126,7 +126,7 @@ metrics:
     display_name: "Corporate Tax Rate"
     category: "core"
     source: "fred"
-    source_series_id: "TBD"
+    source_series_id: "A053RC1Q027SBEA"
     expected_frequency: "annual"
     units: "Percent"
     notes: "Statutory top corporate income tax rate"
