@@ -1,0 +1,4 @@
+date,value,metric,source,frequency,units
+2020-01-01,100.0,demo_index,manual,monthly,Synthetic index
+2020-02-01,,demo_index,manual,monthly,Synthetic index
+2020-03-01,102.5,demo_index,manual,monthly,Synthetic index

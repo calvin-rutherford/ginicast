@@ -1,9 +1,10 @@
-import pandas as pd
 import logging
-from pathlib import Path
+
+import pandas as pd
 
 from ginicast_data.io.paths import AUDIT_DIR
 from ginicast_data.io.readers import list_standardized_files
+from ginicast_data.io.writers import atomic_text, write_csv
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +14,7 @@ def infer_frequency(df: pd.DataFrame) -> str:
     df["date"] = pd.to_datetime(df["date"])
     diffs = df["date"].diff().dropna().dt.days
     median_diff = diffs.median()
-    
+
     if median_diff <= 1: return "daily"
     elif median_diff <= 7: return "weekly"
     elif 28 <= median_diff <= 31: return "monthly"
@@ -25,22 +26,22 @@ def generate_audit_report():
     """Reads all standardized files and computes a metric coverage report."""
     logger.info("Generating metadata audit report...")
     files = list_standardized_files()
-    
+
     if not files:
         logger.warning("No standardized CSV files found. Cannot generate audit.")
         return
-        
+
     records = []
-    
+
     for pf in files:
         try:
             df = pd.read_csv(pf)
             metric_id = df["metric"].iloc[0] if not df.empty and "metric" in df.columns else pf.stem
             source = df["source"].iloc[0] if not df.empty and "source" in df.columns else "unknown"
-            
+
             row_count = len(df)
             missing_count = int(df["value"].isna().sum())
-            
+
             if row_count > 0:
                 df["date_parse"] = pd.to_datetime(df["date"], errors="coerce")
                 start_date = df["date_parse"].min().strftime("%Y-%m-%d")
@@ -50,7 +51,7 @@ def generate_audit_report():
                 start_date = "N/A"
                 end_date = "N/A"
                 inf_freq = "N/A"
-                
+
             records.append({
                 "metric_id": metric_id,
                 "source": source,
@@ -61,22 +62,25 @@ def generate_audit_report():
                 "inferred_freq": inf_freq,
                 "coverage_pct": round(100 - (missing_count/row_count*100), 2) if row_count > 0 else 0
             })
-            
+
         except Exception as e:
             logger.error(f"Error auditing file {pf.name}: {e}")
-            
+
     if not records:
         logger.info("No records to summarize.")
         return
-        
+
     summary_df = pd.DataFrame(records).sort_values("metric_id")
-    
+
     csv_path = AUDIT_DIR / "summary.csv"
-    summary_df.to_csv(csv_path, index=False)
-    
+    write_csv(summary_df, csv_path)
+
     md_path = AUDIT_DIR / "summary.md"
-    with open(md_path, "w", encoding="utf-8") as f:
+    with atomic_text(md_path) as f:
         f.write("# GiniCast Phase 1 Data Audit Summary\n\n")
-        f.write(summary_df.to_markdown(index=False))
-        
+        f.write("| " + " | ".join(summary_df.columns) + " |\n")
+        f.write("| " + " | ".join("---" for _ in summary_df.columns) + " |\n")
+        for row in summary_df.itertuples(index=False, name=None):
+            f.write("| " + " | ".join(str(value) for value in row) + " |\n")
+
     logger.info(f"Audit report saved to {csv_path} and {md_path}")

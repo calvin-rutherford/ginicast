@@ -1,0 +1,13 @@
+metrics:
+  - metric_id: demo_index
+    source: manual
+    source_series_id: synthetic
+    expected_frequency: monthly
+    units: Synthetic index
+    notes: Synthetic fixture; not economic observations.
+  - metric_id: demo_ratio
+    source: manual
+    source_series_id: synthetic
+    expected_frequency: annual
+    units: Synthetic ratio
+    notes: Synthetic fixture; not economic observations.

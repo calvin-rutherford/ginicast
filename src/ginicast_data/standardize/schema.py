@@ -1,5 +1,6 @@
+import math
+
 import pandas as pd
-import numpy as np
 
 # Standard columns for all metrics in the standardized output
 STANDARD_COLUMNS = [
@@ -18,17 +19,27 @@ def enforce_schema(df: pd.DataFrame, metric_id: str, source: str, frequency: str
     """
     if "date" not in df.columns or "value" not in df.columns:
         raise ValueError(f"DataFrame for {metric_id} must have 'date' and 'value' columns.")
-        
+
     df = df.copy()
-    
-    # Coerce values to numeric, turning unparseables to NaN
-    df["value"] = pd.to_numeric(df["value"], errors="coerce")
-    
+
+    # Missing observations are allowed, malformed tokens and infinities are not.
+    original = df["value"]
+    numeric = pd.to_numeric(original, errors="coerce")
+    if (original.notna() & numeric.isna()).any():
+        raise ValueError("Input contains invalid numeric values")
+    if not numeric.dropna().map(math.isfinite).all():
+        raise ValueError("Input contains non-finite values")
+    if not numeric.notna().any():
+        raise ValueError("Input contains no numeric observations")
+    if df["date"].duplicated().any():
+        raise ValueError("Input contains duplicate dates")
+    df["value"] = numeric
+
     # Add metadata columns
     df["metric"] = metric_id
     df["source"] = source
     df["frequency"] = frequency
     df["units"] = units
-    
+
     # Select and order columns
     return df[STANDARD_COLUMNS]

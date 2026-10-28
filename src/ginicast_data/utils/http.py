@@ -1,6 +1,7 @@
-import requests
-from typing import Any
 import logging
+from typing import Any
+
+import requests
 
 from ginicast_data.utils.retry import api_retry
 
