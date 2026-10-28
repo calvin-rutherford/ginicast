@@ -5,7 +5,7 @@ from typing import Any, Tuple
 import pandas as pd
 
 from ginicast_data.fetch.base import BaseFetcher
-from ginicast_data.io.readers import find_manual_raw_file
+from ginicast_data.io.readers import find_manual_raw_file, read_manual_csv
 from ginicast_data.utils.time import current_timestamp_iso
 
 logger = logging.getLogger(__name__)
@@ -35,8 +35,7 @@ class CensusFetcher(BaseFetcher):
             df = pd.DataFrame(columns=["date", "value"])
         else:
             logger.info(f"Process manual Census file: {manual_file}")
-            df = pd.read_csv(manual_file, dtype={"date": "string", "value": "string"},
-                             keep_default_na=False, na_values=[""])
+            df = read_manual_csv(manual_file)
 
             # We expect the user to have provided a basic CSV with at least 'date' and 'value'
             # Or we try to coerce. For this MVP, we enforce 'date' and 'value' columns.

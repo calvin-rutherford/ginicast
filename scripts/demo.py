@@ -18,6 +18,9 @@ def run_demo(root: Path) -> None:
     shutil.copytree(FIXTURE / "config", root / "config")
     shutil.copytree(FIXTURE / "data", root / "data")
     env = dict(os.environ, GINICAST_ROOT=str(root))
+    listed = subprocess.run([sys.executable, "-m", "ginicast_data.cli", "metrics", "--json"],
+                            env=env, check=True, capture_output=True, text=True)
+    assert [metric["metric_id"] for metric in json.loads(listed.stdout)] == ["demo_index", "demo_ratio"]
     subprocess.run([sys.executable, "-m", "ginicast_data.cli", "doctor"], env=env, check=True)
     subprocess.run([sys.executable, "-m", "ginicast_data.cli", "pull", "--all"], env=env, check=True)
     for expected in (FIXTURE / "expected").glob("*.csv"):

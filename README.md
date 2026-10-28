@@ -48,11 +48,34 @@ FRED_API_KEY=... .venv-validation/bin/python -m pytest -m live tests/test_fred_f
 
 The default test command excludes `live` even when a key happens to be present. CI runs deterministic offline tests and lint on Python 3.11 and 3.12; no secrets are configured or required by the workflow. A committed workflow is not evidence that a hosted CI run has passed.
 
+## Discover targets and recover a partial run
+
+List configured metric IDs without fetching data or creating output directories:
+
+```bash
+.venv-validation/bin/ginicast-data metrics
+.venv-validation/bin/ginicast-data metrics --source fred --category core
+.venv-validation/bin/ginicast-data metrics --source manual --json
+```
+
+Source/category filters can be combined; an unmatched filter returns an empty list. Listing is a view of configuration, not proof that a source is available or a definition has been validated.
+
+Pull only the metrics you need, or retry a batch's failures after correcting the input or credential issue:
+
+```bash
+.venv-validation/bin/ginicast-data pull --metric cpi_total --metric cpi_core
+.venv-validation/bin/ginicast-data pull --retry-manifest data/runs/<run_id>.json
+```
+
+Choose exactly one selector: `--all`, `--core`, repeated `--metric`, or `--retry-manifest`. Unknown IDs and invalid manifests are rejected before acquisition. Duplicate explicit IDs run once. Retrying uses the failed metric IDs and **current workspace configuration**; it never reuses output paths or source settings from the manifest. Successful and skipped metrics are left out. Review configuration changes since the original run before retrying.
+
+A retry writes a new manifest with `selection: retry_failed` and `retry_of` pointing to the original run ID, and leaves the original manifest intact. If there are no failed metrics, it prints a no-op message, exits 0, and creates no outputs or new manifest. Retrying failures does not make an older batch complete; consult both manifests when deciding which results to consume. Explicit targeted pulls record `selection: metrics`.
+
 ## Outcomes and output safety
 
 Every normally completed pull writes a unique `data/runs/<run_id>.json` manifest. It records selection, timestamps, each metric's `success`, `failed`, or `skipped` outcome, row/missing counts, output paths, summary counts, and exit code. Successful metadata includes the same run ID. Missing inputs, empty responses, malformed data, and adapter/write errors are failures; disabled sources are explicit skips. The command continues through remaining metrics. Exit **0** means every selected metric succeeded; exit **1** means a failure, skip, empty selection, or fatal command error. Error reports avoid raw exception text that might include credential-bearing URLs; unexpected errors are identified by exception class.
 
-CSV validation rejects missing/invalid dates, duplicate dates, invalid numeric tokens, infinity, and series without any numeric observations. Valid gaps remain blank and are counted. Standardized rows are sorted by date with columns:
+CSV validation rejects malformed row widths, duplicate/unnamed headers, missing/invalid or incomplete dates (including time-only inputs), duplicate dates, invalid numeric tokens, infinity, and series without any numeric observations. Valid gaps remain blank and are counted. Standardized rows are sorted by date with columns:
 
 ```text
 date,value,metric,source,frequency,units
@@ -81,4 +104,4 @@ Source metadata records the configured source, series ID, units, expected freque
 | `data/runs/` | Ignored per-run manifests |
 | `data/audit/` | CSV/Markdown summaries of files on disk |
 
-The audit command summarizes existing standardized files, including older ones; it does not establish current-run success or verify source coverage. Add targets in `config/metrics.yaml`, supply matching source settings and reviewed source definitions, then add fixture tests before depending on a new adapter or format.
+The audit command summarizes existing standardized files, including older ones; it does not establish current-run success or verify source coverage. It exits 1 when there are no files or any file fails validation; a validation failure preserves prior reports rather than publishing an incomplete summary. Add targets in `config/metrics.yaml`, supply matching source settings and reviewed source definitions, then add fixture tests before depending on a new adapter or format.

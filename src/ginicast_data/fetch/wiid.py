@@ -5,7 +5,7 @@ from typing import Any, Tuple
 import pandas as pd
 
 from ginicast_data.fetch.base import BaseFetcher
-from ginicast_data.io.readers import find_manual_raw_file
+from ginicast_data.io.readers import find_manual_raw_file, read_manual_csv
 from ginicast_data.utils.time import current_timestamp_iso
 
 logger = logging.getLogger(__name__)
@@ -34,8 +34,7 @@ class WIIDFetcher(BaseFetcher):
             df = pd.DataFrame(columns=["date", "value"])
         else:
             logger.info(f"Process manual WIID file: {manual_file}")
-            df = pd.read_csv(manual_file, dtype={"date": "string", "value": "string"},
-                             keep_default_na=False, na_values=[""])
+            df = read_manual_csv(manual_file)
 
             if "date" not in df.columns or "value" not in df.columns:
                 raise ValueError(f"Manual file for {metric_id} must have 'date' and 'value' columns.")

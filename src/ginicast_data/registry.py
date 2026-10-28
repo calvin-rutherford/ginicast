@@ -52,6 +52,12 @@ class Registry:
     def get_all_metrics(self) -> list[dict[str, Any]]:
         return self.metrics
 
+    def filter_metrics(self, *, source=None, category=None) -> list[dict[str, Any]]:
+        """List configured targets without instantiating fetchers or touching data."""
+        return [metric for metric in self.metrics
+                if (source is None or metric["source"] == source)
+                and (category is None or metric.get("category") == category)]
+
     def get_core_metrics(self) -> list[dict[str, Any]]:
         return [m for m in self.metrics if m.get("category") == "core"]
 

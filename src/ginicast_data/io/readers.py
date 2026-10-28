@@ -1,3 +1,4 @@
+import csv
 from pathlib import Path
 
 import pandas as pd
@@ -20,3 +21,26 @@ def find_manual_raw_file(source: str, metric_id: str) -> Path | None:
     """Finds a manual raw file for a given source and metric if it exists."""
     path = RAW_MANUAL_DIR / source / f"{metric_id}.csv"
     return path if path.is_file() else None
+
+
+def read_csv_strict(path: Path, required_columns: list[str]) -> pd.DataFrame:
+    """Reject ambiguous headers/row widths instead of letting pandas infer an index."""
+    with path.open(encoding="utf-8-sig", newline="") as stream:
+        reader = csv.reader(stream, strict=True)
+        header = next(reader, None)
+        if (not header or any(not column for column in header)
+                or len(set(header)) != len(header)
+                or not set(required_columns).issubset(header)):
+            raise ValueError("CSV requires unique named columns and all required fields")
+        rows = []
+        for row in reader:
+            if not row:
+                continue
+            if len(row) != len(header):
+                raise ValueError("CSV row width does not match header")
+            rows.append([value if value != "" else None for value in row])
+    return pd.DataFrame(rows, columns=header)
+
+
+def read_manual_csv(path: Path) -> pd.DataFrame:
+    return read_csv_strict(path, ["date", "value"])[["date", "value"]]

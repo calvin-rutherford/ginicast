@@ -112,3 +112,21 @@ def test_output_failure_is_recorded_and_other_metrics_continue(workspace, monkey
     assert set(failed.outputs) == {"raw", "standardized"}
     assert not (root / "data/metadata/manual/demo_index.json").exists()
     assert succeeded.status == "success"
+
+
+@pytest.mark.parametrize("csv", [
+    "date,value\n2020-01-01,1,unexpected\n",
+    "date,value\n2020-01-01,2021-01-01,123\n",
+    "date,value\n2020-01-01\n",
+    "date,value,value\n2020-01-01,1,2\n",
+    'date,value\n2020-01-01,"1\n',
+    "date,value\n12:30,2\n",
+    "date,value\nJan 1,2\n",
+])
+def test_ambiguous_csv_and_incomplete_dates_fail(workspace, csv):
+    root, registry = workspace
+    (root / "data/raw_manual/manual/demo_index.csv").write_text(csv)
+    result = process_metric(registry.get_metric("demo_index"), config_registry=registry)
+    assert result.status == "failed"
+    assert not result.outputs
+    assert not (root / "data/standardized/demo_index.csv").exists()

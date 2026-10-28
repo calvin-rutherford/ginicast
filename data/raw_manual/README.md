@@ -6,7 +6,7 @@ Census, WIID, OECD, and generic manual adapters read exactly:
 data/raw_manual/<source>/<metric_id>.csv
 ```
 
-A raw downloaded Census table, Excel workbook, Stata file, or OECD export cannot be dropped in unchanged. Select the intended geography, population, definition, and measure first; reshape it into a UTF-8 CSV with `date,value` columns. Extra columns are ignored. Use ISO `YYYY-MM-DD` dates (January 1 for an annual observation), one row per date, plain numeric values in the configured units, and an empty value field only for a known missing observation. Do not include thousands separators, percent signs, `N/A`, `NaN`, or other nonnumeric tokens. Invalid/missing dates, duplicate dates, malformed values, and all-missing series fail validation. A missing file or header-only CSV is a failed metric, not a successful acquisition.
+A raw downloaded Census table, Excel workbook, Stata file, or OECD export cannot be dropped in unchanged. Select the intended geography, population, definition, and measure first; reshape it into a UTF-8 CSV with `date,value` columns. Extra columns are ignored. Use ISO `YYYY-MM-DD` dates (January 1 for an annual observation), one row per date, plain numeric values in the configured units, and an empty value field only for a known missing observation. Do not include thousands separators, percent signs, `N/A`, `NaN`, or other nonnumeric tokens. Invalid/missing or partial dates, time-only inputs, duplicate dates, malformed values, duplicate/unnamed headers, mismatched row widths, and all-missing series fail validation. Complete slash-separated or compact dates remain accepted for compatibility; ISO dates are preferred. A missing file or header-only CSV is a failed metric, not a successful acquisition.
 
 Example shape only:
 

@@ -13,6 +13,7 @@ from ginicast_data.io.writers import (
     write_standardized_csv,
 )
 from ginicast_data.registry import get_registry
+from ginicast_data.selection import select_metrics
 from ginicast_data.standardize.normalize_dates import normalize_date_column
 from ginicast_data.standardize.schema import enforce_schema
 from ginicast_data.utils.time import current_timestamp_iso
@@ -89,9 +90,17 @@ def process_metric(metric_config: dict, *, config_registry=None, run_id=None) ->
     return result
 
 
-def run_pipeline(core_only: bool = False, *, config_registry=None) -> RunResult:
+def run_pipeline(core_only: bool = False, *, config_registry=None,
+                 metric_ids: list[str] | None = None, retry_of: str | None = None) -> RunResult:
     config_registry = config_registry or get_registry()
-    metrics = config_registry.get_core_metrics() if core_only else config_registry.get_all_metrics()
+    if metric_ids is not None:
+        if core_only:
+            raise ValueError("Choose core_only or metric_ids, not both")
+        metrics = select_metrics(config_registry, metric_ids)
+        selection = "retry_failed" if retry_of else "metrics"
+    else:
+        metrics = config_registry.get_core_metrics() if core_only else config_registry.get_all_metrics()
+        selection = "core" if core_only else "all"
     started = current_timestamp_iso()
     run_id = uuid4().hex
     results = [process_metric(metric, config_registry=config_registry, run_id=run_id)
@@ -99,7 +108,7 @@ def run_pipeline(core_only: bool = False, *, config_registry=None) -> RunResult:
     run = RunResult(run_id, started, current_timestamp_iso(), results, RUNS_DIR / f"{run_id}.json")
     write_json({
         "manifest_version": 1, "run_id": run_id, "started_at": run.started_at,
-        "finished_at": run.finished_at, "selection": "core" if core_only else "all",
+        "finished_at": run.finished_at, "selection": selection, "retry_of": retry_of,
         "summary": run.summary, "exit_code": run.exit_code,
         "metrics": [asdict(result) for result in results],
     }, run.manifest)

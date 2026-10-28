@@ -3,8 +3,10 @@ import logging
 import pandas as pd
 
 from ginicast_data.io.paths import AUDIT_DIR
-from ginicast_data.io.readers import list_standardized_files
+from ginicast_data.io.readers import list_standardized_files, read_csv_strict
 from ginicast_data.io.writers import atomic_text, write_csv
+from ginicast_data.standardize.normalize_dates import normalize_date_column
+from ginicast_data.standardize.schema import STANDARD_COLUMNS, enforce_schema
 
 logger = logging.getLogger(__name__)
 
@@ -22,20 +24,29 @@ def infer_frequency(df: pd.DataFrame) -> str:
     elif 360 <= median_diff <= 370: return "annual"
     return "unknown"
 
-def generate_audit_report():
+def generate_audit_report() -> int:
     """Reads all standardized files and computes a metric coverage report."""
     logger.info("Generating metadata audit report...")
     files = list_standardized_files()
 
     if not files:
         logger.warning("No standardized CSV files found. Cannot generate audit.")
-        return
+        return 1
 
     records = []
+    failures = 0
 
     for pf in files:
         try:
-            df = pd.read_csv(pf)
+            df = read_csv_strict(pf, STANDARD_COLUMNS)
+            if df.empty:
+                raise ValueError("No observations to audit")
+            for column in ("metric", "source", "frequency", "units"):
+                if df[column].isna().any() or df[column].nunique() != 1:
+                    raise ValueError("Ambiguous or missing standardized metadata")
+            df = enforce_schema(normalize_date_column(df), df["metric"].iloc[0],
+                                df["source"].iloc[0], df["frequency"].iloc[0],
+                                df["units"].iloc[0]).sort_values("date")
             metric_id = df["metric"].iloc[0] if not df.empty and "metric" in df.columns else pf.stem
             source = df["source"].iloc[0] if not df.empty and "source" in df.columns else "unknown"
 
@@ -63,12 +74,17 @@ def generate_audit_report():
                 "coverage_pct": round(100 - (missing_count/row_count*100), 2) if row_count > 0 else 0
             })
 
-        except Exception as e:
-            logger.error(f"Error auditing file {pf.name}: {e}")
+        except Exception as exc:
+            failures += 1
+            logger.error("Error auditing file %s (%s)", pf.name, type(exc).__name__)
+
+    if failures:
+        logger.error("Audit failed for %s file(s); prior reports were not replaced", failures)
+        return 1
 
     if not records:
         logger.info("No records to summarize.")
-        return
+        return 1
 
     summary_df = pd.DataFrame(records).sort_values("metric_id")
 
@@ -84,3 +100,4 @@ def generate_audit_report():
             f.write("| " + " | ".join(str(value) for value in row) + " |\n")
 
     logger.info(f"Audit report saved to {csv_path} and {md_path}")
+    return 0

@@ -1,4 +1,5 @@
 import pandas as pd
+import pytest
 
 from ginicast_data.standardize.normalize_dates import normalize_date_column
 from ginicast_data.standardize.schema import STANDARD_COLUMNS, enforce_schema
@@ -31,3 +32,9 @@ def test_normalize_date_column():
     assert norm_df["date"].iloc[0] == "2020-01-01"
     assert norm_df["date"].iloc[1] == "2020-01-15"
     assert norm_df["date"].iloc[2] == "2020-02-01"
+
+
+@pytest.mark.parametrize("date", ["12:00", "12:30", "January 1", "2020", "2020-01", "today", None])
+def test_incomplete_dates_are_rejected(date):
+    with pytest.raises(ValueError):
+        normalize_date_column(pd.DataFrame({"date": [date]}))
