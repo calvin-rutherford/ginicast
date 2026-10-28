@@ -9,3 +9,9 @@ data/metadata/
 data/audit/
 logs/
 !data/raw_manual/
+
+.venv/
+.venv-*/
+.ruff_cache/
+dist/
+data/runs/
